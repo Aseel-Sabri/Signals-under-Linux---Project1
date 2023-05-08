@@ -14,27 +14,25 @@ int main()
 
     cout << "I am Coprocessor with PID " << getpid() << "\n";
 
+    /* try to open the FIFO for reading */
+    if ((fifo = open(FIFO, O_RDWR)) == -1)
+    {
+        perror(FIFO);
+        exit(7);
+    }
+
     /**/
     while (1)
     {
         double values[NUM_OF_CHILDREN - 1]; /* all children processes excepts for coprocessor */
-        double teamSum[NUM_OF_TEAMS]; 
+        double teamSum[NUM_OF_TEAMS];
 
-        /* try to open the FIFO for reading */
-        if ((fifo = open(FIFO, O_RDONLY)) == -1)
-        {
-            perror(FIFO);
-            exit(7);
-        }
-
-        memset(buffer, 0x0, BUFSIZ); /* set size of buffer and initialize bytes to 0 */
+        memset(buffer, 0x0, BUFSIZ);        /* set size of buffer and initialize bytes to 0 */
         read(fifo, buffer, sizeof(buffer)); /* read FIFO and save to buffer (blocking operation) */
 
         cout << "MESSAGE RECIVED IN PROCESSOR: " << buffer << endl;
 
-        close(fifo); /* close FIFO to open later for writing */
-
-        /* split string <C1_VALUE>,<C2_VALUE>,<C3_VALUE>,<C4_VALUE> into the array values */        
+        /* split string <C1_VALUE>,<C2_VALUE>,<C3_VALUE>,<C4_VALUE> into the array values */
         stringstream messageStream(buffer);
 
         unsigned int i = 0;
@@ -55,20 +53,14 @@ int main()
         cout << "Coprocessor:: team2 sum: " << teamSum[1] << endl;
 
         string teamsResult = to_string(teamSum[0]) + "," + to_string(teamSum[1]); /* putting result in one string to send it in FIFO */
-        
-        /* Open FIFO for writing */
-        if ((fifo = open(FIFO, O_WRONLY)) == -1)
-        {
-            perror(FIFO);
-            exit(7);
-        }
 
         write(fifo, teamsResult.c_str(), teamsResult.length() + 1); /* write teamResult string to FIFO to be read by the parent */
-        
+
         cout << "MESSAGE WROTE BY PROCESSOR : " << teamsResult << endl;
         fflush(stdout);
-        
-        close(fifo); // close the FIFO
+
+        sleep(1);
     }
+    close(fifo);
     return 0;
 }

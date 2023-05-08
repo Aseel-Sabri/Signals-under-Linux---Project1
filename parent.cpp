@@ -36,7 +36,7 @@ unsigned rangeValues[2];
 int main(int argc, char *argv[])
 {
     unsigned rounds = 5; /* Assume default number is 5 */
-    if (argc > 2) /* error when having more than two arguments */
+    if (argc > 2)        /* error when having more than two arguments */
     {
         printf("Usage: %s [num_of_rounds]\n", argv[0]);
         exit(1);
@@ -101,11 +101,11 @@ int main(int argc, char *argv[])
             sleep(1);
         }
 
-        kill(opglPid, SIGUSR2); /* display range values in opgl */
+        kill(opglPid, SIGUSR2);                                                  /* display range values in opgl */
         sendToOpgl(to_string(rangeValues[0]) + "," + to_string(rangeValues[1])); /* send MIN and MAX to opgl */
 
         /* Suspend parent until all children have responded with their generated values */
-        while (sigCount < NUM_OF_CHILDREN - 1) 
+        while (sigCount < NUM_OF_CHILDREN - 1)
         {
             pause();
         }
@@ -117,11 +117,11 @@ int main(int argc, char *argv[])
         sleep(1); /* for display */
 
         kill(opglPid, SIGRTMIN + 1); /* send signal to display the children values */
-        sendToOpgl(values); /* send the values to opgl through FIFO */
+        sendToOpgl(values);          /* send the values to opgl through FIFO */
 
         int winner = processValues(values); /* process values and return round winner */
 
-        kill(opglPid, SIGRTMIN + 2); /* send signal to opgl to display round winner of the round */
+        kill(opglPid, SIGRTMIN + 2);   /* send signal to opgl to display round winner of the round */
         sendToOpgl(to_string(winner)); /* send winner string */
 
         if (winner == -1)
@@ -158,21 +158,22 @@ int main(int argc, char *argv[])
 }
 
 /* this function sets all the catchable signals used for the parent */
-void addSignalCatchers(){
+void addSignalCatchers()
+{
     if (sigset(SIGUSR1, childValueSignalCatcher) == SIG_ERR) /* child sends SIGUSR1 when finished writing */
     {
         perror("SIGUSR1 handler");
-        exit(9);
+        exit(4);
     }
     if (sigset(SIGCHLD, childDeadSignalCatcher) == SIG_ERR) /* child sends SIGCHLD when failed */
     {
         perror("SIGCHLD handler");
-        exit(10);
+        exit(5);
     }
     if (sigset(SIGINT, childDeadSignalCatcher) == SIG_ERR) /* child is interrupted by SIGINT */
     {
         perror("SIGINT handler");
-        exit(11);
+        exit(6);
     }
 }
 
@@ -184,7 +185,7 @@ void childDeadSignalCatcher(int signum)
     exit(signum);
 }
 
-/*  
+/*
     Callback function for SIGUSR1, increments the number of childs that sent the SIGUSR1 signals
     indicating the finished writing
 */
@@ -201,15 +202,15 @@ void createProcesses(char *file, int i)
     {
     case -1: /* error performing fork */
         perror("Fork");
-        exit(6);
+        exit(7);
 
-    case 0: /* In the child */
+    case 0:                               /* In the child */
         execlp(file, file, (char *)NULL); /* execute passed file */
         perror("exec failure ");
-        exit(7);
+        exit(8);
         break;
 
-    default: /* In the parent */
+    default:               /* In the parent */
         children[i] = pid; /* save the PID of the child */
     }
 }
@@ -222,15 +223,15 @@ void createOpenglProcess()
     {
     case -1: /* error performing fork */
         perror("Fork");
-        exit(6);
+        exit(9);
 
-    case 0: /* In the opgl child */
+    case 0:                                       /* In the opgl child */
         execlp("./opgl", "./opgl", (char *)NULL); /* execute opgl.cpp file */
         perror("exec failure ");
-        exit(7);
+        exit(10);
         break;
 
-    default: /* In the parent */
+    default:           /* In the parent */
         opglPid = pid; /* save the pid of the opgl child */
     }
 }
@@ -256,7 +257,7 @@ void generateRange()
     rangeFile.close();
 }
 
-/* 
+/*
     This function writes the values the children generated, each in its corresponding file.
     It also returns all the values concatenated in a string seperated by a coma
 */
@@ -272,7 +273,7 @@ string manageChildrenValues()
         if (!childFile.good())
         {
             perror("Open child file");
-            exit(8);
+            exit(11);
         }
 
         string line;
@@ -289,23 +290,17 @@ string manageChildrenValues()
 /* send values to the coprocessor to process them and return the sums */
 int processValues(string values)
 {
+    /* try to open the FIFO for reading */
     int fifo;
-    if (!(fifo = open(FIFO, O_WRONLY))) /* open the FIFO for writing */
+    if (!(fifo = open(FIFO, O_RDWR))) /* open the FIFO for writing */
     {
         perror(FIFO);
-        exit(7);
+        exit(12);
     }
 
     write(fifo, values.c_str(), values.length() + 1); /* write the children values to the FIFO */
     cout << "Parent:: values: " << values << endl;
 
-    close(fifo); /* close the FIFO to open it later for reading */
-
-    if (!(fifo = open(FIFO, O_RDONLY))) /* open FIFO for reading */
-    {
-        perror(FIFO);
-        exit(7);
-    }
     memset(buffer, 0x0, BUFSIZ);
 
     read(fifo, buffer, sizeof(buffer)); /* Read the FIFO to buffer */
@@ -354,7 +349,7 @@ void sendToOpgl(string message)
     if (!(fifo = open(OPENGL_FIFO, O_WRONLY)))
     {
         perror(OPENGL_FIFO);
-        exit(12);
+        exit(13);
     }
     write(fifo, message.c_str(), message.length() + 1); /* write message to FIFO */
     close(fifo);
@@ -366,22 +361,22 @@ void createFifo(const char *fifoName)
     if ((mknod(fifoName, S_IFIFO | 0666, 0)) == -1) /* Try to make the FIFO */
     {
         /* if mknod fails, try unlinking FIFO and try mknod again */
-        if (unlink(fifoName)) 
+        if (unlink(fifoName))
         {
             perror("Error Deleting FIFO");
-            exit(4);
+            exit(14);
         }
-        if ((mknod(fifoName, S_IFIFO | 0666, 0)) == -1) 
+        if ((mknod(fifoName, S_IFIFO | 0666, 0)) == -1)
         {
             /* If mknod error persists, exit the program */
             perror("Error Creating FIFO");
-            exit(5); 
+            exit(15);
         }
     }
 }
 
 /* This function cleans up used respurces when game is finished or exited for some reason*/
-void cleanup() 
+void cleanup()
 {
     sigset(SIGCHLD, SIG_DFL); /* stop taking signal from failed children */
 
@@ -392,7 +387,7 @@ void cleanup()
     string fileName;
 
     /* delete files where children values are saved */
-    for (unsigned int i = 0; i < NUM_OF_CHILDREN - 1; i++) 
+    for (unsigned int i = 0; i < NUM_OF_CHILDREN - 1; i++)
     {
         fileName = "/tmp/" + to_string(children[i]) + ".txt";
         if (unlink(fileName.c_str()))
@@ -412,7 +407,7 @@ void cleanup()
     if (unlink(FIFO))
     {
         perror("Error Deleting FIFO");
-        exit(4);
+        exit(16);
     }
     exit(0);
 }
