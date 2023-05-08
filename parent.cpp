@@ -409,5 +409,10 @@ void cleanup()
         perror("Error Deleting FIFO");
         exit(16);
     }
+    if (unlink(OPENGL_FIFO))
+    {
+        perror("Error Deleting FIFO");
+        exit(17);
+    }
     exit(0);
 }
